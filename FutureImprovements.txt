@@ -1,0 +1,17 @@
+These changes are also noted in WordleBotMain.py
+
+
+ Future improvements possible:
+ Store past guesses and their sequence in a csv or JSON file so that it can be read in (this way you don't have to pass it as an arg)
+
+ better way to score letters/words
+         - Maybe also a longer list of test words
+         - This could just be used to more accurately score letters/words, including words longer than 5 letters
+
+ A way to decide when to introduce words with "letter multiples" (words with the same letter more than once)
+         - Currently I don't introduce letter multiples until at least the third guess, but it's possible before that, in which case the bot returns null
+
+
+ Improve how we consider past "Green" or "Yellow" letters! Currently the only consideration is if the letter is IN the word, not what it's location in the word is
+
+ Also need a way to account for NO correct letters (it may be better to use IncorrectLetters as a required argument and CorrectLetters as optional
