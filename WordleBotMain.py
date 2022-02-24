@@ -1,5 +1,10 @@
+
+from csv import writer, reader
+from mimetypes import guess_all_extensions
 from os import remove
+from statistics import correlation
 import sys
+from datetime import date
 
 
 Possible_Answers = []
@@ -9,8 +14,6 @@ global correctLetters
 debug = False
 
 
-# Future improvements possible:
-### Store past guesses and their sequence in a csv or JSON file so that it can be read in (this way you don't have to pass it as an arg)
 
 ### better way to score letters/words
 ###         - Maybe also a longer list of test words
@@ -21,6 +24,8 @@ debug = False
 
 
 ### Improve how we consider past "Green" or "Yellow" letters! Currently the only consideration is if the letter is IN the word, not what it's location in the word is
+
+### take Black letters into account based on position, rather than just if it's in the word
 
 
 def load_all_possible_answers():
@@ -54,6 +59,59 @@ def scoreWords(letterscores, GuessNum):
                 if joinAns.count(letter) > 1:
                     wordScores[joinAns][1] = 2
     return wordScores
+
+
+def GetPastCorrectLetters(PastGuessInfo, Sequence, Guess): 
+    CorrectLetters = ""
+    for row in PastGuessInfo:
+        if row[0] == date.today().strftime("%m/%d/%Y"):
+            for i in range(len(row[1])):
+                if row[1][i] == 'g' or row[1][i] == 'y':
+                    CorrectLetters += row[2][i]
+    for i in range(len(Sequence)):
+        if Sequence[i] == 'g' or Sequence[i] == 'y':
+            CorrectLetters += Guess[i]
+    return CorrectLetters
+
+def GetPastIncorrectLetters(PastGuessInfo, Sequence, Guess):
+
+    IncorrectLetters = ""
+    
+    for row in PastGuessInfo:
+        if row[0] == date.today().strftime("%m/%d/%Y"):
+            for i in range(len(row[1])):
+                if row[1][i] == 'b':
+                    IncorrectLetters += row[2][i]
+    for i in range(len(Sequence)):
+        if Sequence[i] == 'b':
+            IncorrectLetters += Guess[i]
+    return IncorrectLetters
+
+
+    
+
+def SavePastGuesses(Sequence, Guess, GuessNum, PastCorrectLetters, PastIncorrectLetters):
+    today = date.today()
+    import_data = [today.strftime("%m/%d/%Y"), Sequence, Guess, GuessNum, PastCorrectLetters, PastIncorrectLetters]
+
+    with open('PastGuessInfo.csv', 'a', newline = '\n') as pgInfo:
+        writer_obj = writer(pgInfo)
+        writer_obj.writerow(import_data)   
+        pgInfo.close() 
+
+def loadPastGuessInfo():
+    pastGuessInfo = []
+    today = date.today()
+
+    with open('PastGuessInfo.csv', 'r', newline = '\n') as pgInfo:
+        read = reader(pgInfo)
+        next(read) #just interested in the info, so we skip the header row
+        for row in read:
+            if row[0] == today.strftime("%m/%d/%Y"): #currently only interested in today's guesses. There may be more analysis possible in the future for optimization
+                pastGuessInfo.append(row)
+        pgInfo.close()
+
+    return pastGuessInfo
 
 
 def Possible_Words_Left(PastSequence, CurrentGuess, badLetters, GuessNum, wordScores):
@@ -110,7 +168,9 @@ def Possible_Words_Left(PastSequence, CurrentGuess, badLetters, GuessNum, wordSc
         word = list(word)
         if word in list(Possible_Answers_Left):
             Possible_Answers_Left.remove(word)
-    return Possible_Answers_Left, correctLetters
+    # for ans in Possible_Answers_Left:
+    #     print(ans)
+    return Possible_Answers_Left
 
 
 
@@ -150,21 +210,21 @@ def PickBestWord(Answers_Left, correctLetters, Sequence, Guess, wordScores):
     return bestGuess
 
 
-def attempt(Sequence, Guess, GuessNum, PastCorrectLetters, wrongLetters = ""):
 
+def attempt(Sequence, Guess):
 
     load_all_possible_answers()
-    # letScores = scoreLetters()
-    # sort_lettersScores = sorted(letScores.items(), key=lambda x: x[1])
-
+    PastGuessInfo = loadPastGuessInfo()
+    if PastGuessInfo == []:
+        GuessNum = 1
+    else:
+        GuessNum = len(PastGuessInfo)
+    wrongLetters = GetPastIncorrectLetters(PastGuessInfo, Sequence, Guess)
+    PastCorrectLetters = GetPastCorrectLetters(PastGuessInfo, Sequence, Guess)
+    SavePastGuesses(Sequence, Guess, GuessNum, PastCorrectLetters, wrongLetters)
     WordScores = scoreWords(scoreLetters(), GuessNum)
-    sort_WordScores = sorted(WordScores.items(), key=lambda x: x[1])
-
-    Possible_Answers_Left, correctLetters = Possible_Words_Left(Sequence, Guess, wrongLetters, GuessNum, WordScores)
+    Possible_Answers_Left = Possible_Words_Left(Sequence, Guess, wrongLetters, GuessNum, WordScores)
     return PickBestWord(Possible_Answers_Left, PastCorrectLetters, Sequence, Guess, WordScores)
 
-
-
-
 if __name__ == '__main__':
-    attempt(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+    attempt(sys.argv[1], sys.argv[2])
